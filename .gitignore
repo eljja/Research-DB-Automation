@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.env
+research.db
+immediate_error.log
+server.log
