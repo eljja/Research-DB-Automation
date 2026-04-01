@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research DB Automation Console</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <div class="hero-copy">
+                <h1>Research DB Automation Console</h1>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Items</span>
+                    <strong id="stat-total">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">New</span>
+                    <strong id="stat-new">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Abstract Ready</span>
+                    <strong id="stat-abstract">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">LLM Done</span>
+                    <strong id="stat-llm">0</strong>
+                </div>
+            </div>
+        </header>
+
+        <section class="board board-top">
+            <article class="panel glass">
+                <div class="panel-head">
+                    <div>
+                        <p class="panel-kicker">Topic Control / Scheduler</p>
+                    </div>
+                    <div class="head-actions">
+                        <div class="pill" id="kst-time">KST --:--</div>
+                        <button id="save-config-btn" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+
+                <label class="field">
+                    <span>Research Topic</span>
+                    <select id="topic-select"></select>
+                </label>
+
+                <label class="field">
+                    <span>Search Query</span>
+                    <textarea id="query-input" rows="3" placeholder="SerpApi query"></textarea>
+                </label>
+
+                <label class="field compact-field">
+                    <span>Weekly Sensing Time</span>
+                </label>
+
+                <div id="schedule-inputs" class="schedule-grid"></div>
+            </article>
+
+            <article class="panel dark">
+                <div class="panel-head">
+                    <div>
+                        <p class="panel-kicker">Manual Actions</p>
+                        <h2>Pipeline Trigger</h2>
+                    </div>
+                </div>
+
+                <div class="action-grid">
+                    <div class="action-card sense action-block">
+                        <button id="btn-sense" class="action-button">
+                            <span class="action-title">Google Sensing</span>
+                            <span class="action-desc">Collect 20 latest items via SerpApi</span>
+                        </button>
+                        <label class="action-inline-field">
+                            <span>Result Offset</span>
+                            <input id="sense-offset" type="number" min="0" step="10" value="0">
+                        </label>
+                    </div>
+                    <div class="action-card abstract action-block">
+                        <button id="btn-abstract" class="action-button">
+                            <span class="action-title">Abstract Fetch</span>
+                            <span class="action-desc">Fetch the latest pending items</span>
+                        </button>
+                        <label class="action-inline-field action-inline-count">
+                            <input id="abstract-limit" type="number" min="1" max="100" step="1" value="10">
+                        </label>
+                    </div>
+                    <div class="action-card llm action-block">
+                        <button id="btn-llm" class="action-button">
+                            <span class="action-title">LLM Analyzer</span>
+                            <span class="action-desc">Analyze the latest pending items</span>
+                        </button>
+                        <label class="action-inline-field action-inline-count">
+                            <input id="llm-limit" type="number" min="1" max="100" step="1" value="10">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="status-strip">
+                    <div class="mini-chip">Errors <strong id="stat-error">0</strong></div>
+                    <div class="mini-chip">Topics <strong id="stat-topics">0</strong></div>
+                    <div class="mini-chip">Debug <strong id="debug-state-label">OFF</strong></div>
+                </div>
+
+                <div id="notice" class="notice"></div>
+            </article>
+        </section>
+
+        <section class="board board-middle">
+            <article class="panel graph-panel">
+                <div class="panel-head">
+                    <div>
+                        <p class="panel-kicker">Analytics</p>
+                        <h2>DB Graph</h2>
+                    </div>
+                </div>
+
+                <div class="graph-toolbar">
+                    <label class="inline-field compact">
+                        <span>X</span>
+                        <select id="x-axis"></select>
+                    </label>
+                    <label class="toggle compact">
+                        <input type="checkbox" id="x-log">
+                        <span>X Log</span>
+                    </label>
+                    <label class="inline-field compact">
+                        <span>Y</span>
+                        <select id="y-axis"></select>
+                    </label>
+                    <label class="toggle compact">
+                        <input type="checkbox" id="y-log">
+                        <span>Y Log</span>
+                    </label>
+                    <label class="inline-field compact slider-field">
+                        <span>Size</span>
+                        <input id="point-size" type="range" min="2" max="14" step="1" value="5">
+                    </label>
+                    <button id="btn-refresh-graph" class="btn">Refresh</button>
+                    <button id="btn-reset-zoom" class="btn">Reset Zoom</button>
+                </div>
+
+                <div class="chart-shell">
+                    <canvas id="dbChart"></canvas>
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-head">
+                    <div>
+                        <p class="panel-kicker">Operations</p>
+                        <h2>Recent Log</h2>
+                    </div>
+                </div>
+                <div id="log-container" class="log-feed"></div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <p class="panel-kicker">Database</p>
+                    <h2>Research Items</h2>
+                </div>
+                <div class="table-pager">
+                    <button id="prev-page" class="btn">Prev</button>
+                    <div id="page-buttons" class="page-buttons"></div>
+                    <span id="page-info">Page 1 / 1</span>
+                    <button id="next-page" class="btn">Next</button>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table id="db-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Year</th>
+                            <th>Mechanism</th>
+                            <th>Architecture</th>
+                            <th>Stack</th>
+                            <th>Memory Window</th>
+                            <th>Voltage</th>
+                            <th>Speed</th>
+                            <th>Retention</th>
+                            <th>Endurance</th>
+                            <th>Unique</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel debug-panel">
+            <div class="panel-head">
+                <div>
+                    <p class="panel-kicker">Developer</p>
+                    <h2>Debug Log</h2>
+                </div>
+                <button id="btn-debug-toggle" class="btn btn-primary">Debug OFF</button>
+            </div>
+            <div id="debug-log-container" class="debug-feed hidden"></div>
+        </section>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
