@@ -1,0 +1,15 @@
+[Unit]
+Description=Research DB Automation Console
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/eljja/gem-cli
+ExecStart=/home/eljja/gem-cli/venv/bin/python /home/eljja/gem-cli/app.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
