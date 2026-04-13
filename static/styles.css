@@ -180,8 +180,12 @@ body::before {
 }
 
 .board-middle {
-    grid-template-columns: 1.2fr 0.8fr;
+    grid-template-columns: 1.18fr 0.82fr;
     align-items: stretch;
+}
+
+.board > * {
+    min-width: 0;
 }
 
 .panel {
@@ -386,6 +390,17 @@ textarea {
     margin-top: 2px;
 }
 
+.action-group {
+    display: grid;
+    gap: 6px;
+}
+
+.action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
 .action-card {
     display: flex;
     flex-direction: column;
@@ -398,6 +413,10 @@ textarea {
 
 .action-block {
     padding: 10px 12px;
+}
+
+.half-card {
+    min-width: 0;
 }
 
 .action-button {
@@ -416,9 +435,9 @@ textarea {
 .action-inline-field {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 10px;
-    margin-top: 4px;
+    margin-top: 0;
     color: var(--muted);
     font-size: 0.72rem;
 }
@@ -428,18 +447,20 @@ textarea {
 }
 
 .action-inline-field input {
-    width: 96px;
+    width: 100px;
     padding: 7px 9px;
     font-size: 0.82rem;
 }
 
-.action-inline-count {
-    margin-top: 2px;
+.action-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 0 2px;
 }
 
-.action-inline-count input {
-    width: 84px;
-    margin-left: auto;
+.action-meta-row .action-inline-field input {
     text-align: center;
 }
 
@@ -495,7 +516,7 @@ textarea {
 
 .log-row {
     display: grid;
-    grid-template-columns: 84px 1fr;
+    grid-template-columns: 84px minmax(0, 1fr);
     gap: 10px;
     padding: 8px 10px;
     border-radius: 12px;
@@ -566,10 +587,24 @@ textarea {
 
 .graph-toolbar {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.graph-toolbar-top {
+    display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
-    margin-bottom: 16px;
+}
+
+.scatter-controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
 }
 
 .inline-field {
@@ -602,6 +637,10 @@ textarea {
 .slider-field input[type="range"] {
     width: 120px;
     padding: 0;
+}
+
+.chart-shell canvas {
+    cursor: crosshair;
 }
 
 .chart-shell {
@@ -640,7 +679,7 @@ textarea {
 
 .table-wrap {
     overflow: auto;
-    max-height: 404px;
+    max-height: 808px;
     border-radius: 20px;
     border: 1px solid rgba(255,255,255,0.08);
 }
@@ -668,6 +707,21 @@ th {
     color: var(--amber);
     font-family: "Space Grotesk", sans-serif;
     font-size: 0.72rem;
+}
+
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: color 140ms ease, background 140ms ease;
+}
+
+.sortable-header:hover {
+    color: #ffd18a;
+    background: #17293a;
+}
+
+.sortable-header.active {
+    color: #ffe4b8;
 }
 
 tbody tr:hover {
@@ -875,6 +929,10 @@ button:disabled {
     }
 
     .log-row {
+        grid-template-columns: 1fr;
+    }
+
+    .action-row {
         grid-template-columns: 1fr;
     }
 }

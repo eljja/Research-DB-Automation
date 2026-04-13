@@ -22,6 +22,18 @@ def _run_async(target, *args):
     return thread
 
 
+def _run_scheduled_pipeline(topic_id, topic_name, limit=20):
+    try:
+        log_message("INFO", f"Scheduled pipeline started for topic '{topic_name}'.")
+        services.sense_scholar(topic_id, limit, 0)
+        services.fetch_abstracts(limit, topic_id=topic_id)
+        services.fetch_full_papers(limit, topic_id=topic_id)
+        services.process_llm(limit, topic_id=topic_id)
+        log_message("INFO", f"Scheduled pipeline completed for topic '{topic_name}'.")
+    except Exception as exc:
+        log_message("ERROR", f"Scheduled pipeline failed for topic '{topic_name}': {exc}")
+
+
 def _serialize_topic(row):
     topic = dict(row)
     topic["schedule"] = {
@@ -52,7 +64,7 @@ def scheduled_sensing_task():
                     "INFO",
                     f"Scheduled sensing triggered for topic '{topic['name']}' at {now.strftime('%Y-%m-%d %H:%M')} KST.",
                 )
-                _run_async(services.sense_scholar, topic["id"], 20, 0)
+                _run_async(_run_scheduled_pipeline, topic["id"], topic["name"], 20)
     except Exception as exc:
         log_message("ERROR", f"Scheduler tick failed: {exc}")
     finally:
@@ -172,6 +184,31 @@ def get_papers():
     per_page = 20
     offset = (page - 1) * per_page
     topic_id = request.args.get("topic_id")
+    sort_by = (request.args.get("sort_by") or "created_at").strip()
+    sort_dir = (request.args.get("sort_dir") or "desc").strip().lower()
+
+    sortable_columns = {
+        "title": "title",
+        "status": "status",
+        "year": "year",
+        "mechanism": "mechanism",
+        "architecture": "architecture",
+        "stack": "stack",
+        "key_material": "key_material",
+        "memory_window": "memory_window",
+        "voltage": "voltage",
+        "speed": "speed",
+        "retention": "retention",
+        "endurance": "endurance",
+        "uniqueness": "uniqueness",
+        "created_at": "created_at",
+    }
+    order_column = sortable_columns.get(sort_by, "created_at")
+    order_direction = "ASC" if sort_dir == "asc" else "DESC"
+    if order_column == "created_at":
+        order_by_clause = f"created_at {order_direction}"
+    else:
+        order_by_clause = f"{order_column} {order_direction}, created_at DESC"
 
     conn = get_db()
     cursor = conn.cursor()
@@ -180,11 +217,11 @@ def get_papers():
         cursor.execute("SELECT COUNT(*) AS total FROM papers WHERE topic_id = ?", (topic_id,))
         total = cursor.fetchone()["total"]
         cursor.execute(
-            """
+            f"""
             SELECT *
             FROM papers
             WHERE topic_id = ?
-            ORDER BY created_at DESC
+            ORDER BY {order_by_clause}
             LIMIT ? OFFSET ?
             """,
             (topic_id, per_page, offset),
@@ -193,7 +230,7 @@ def get_papers():
         cursor.execute("SELECT COUNT(*) AS total FROM papers")
         total = cursor.fetchone()["total"]
         cursor.execute(
-            "SELECT * FROM papers ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            f"SELECT * FROM papers ORDER BY {order_by_clause} LIMIT ? OFFSET ?",
             (per_page, offset),
         )
 
@@ -205,6 +242,8 @@ def get_papers():
             "total": total,
             "page": page,
             "pages": max((total + per_page - 1) // per_page, 1),
+            "sort_by": order_column,
+            "sort_dir": order_direction.lower(),
         }
     )
 
@@ -213,11 +252,21 @@ def get_papers():
 def get_papers_for_graph():
     conn = get_db()
     cursor = conn.cursor()
+    topic_id = request.args.get("topic_id")
+    params = []
+    where_clauses = [
+        "status = 'llm_processed'",
+        "COALESCE(excluded, 0) = 0",
+    ]
+    if topic_id:
+        where_clauses.append("topic_id = ?")
+        params.append(topic_id)
+
     cursor.execute(
-        """
+        f"""
         SELECT
-            result_id, title, category, year, year_month, mechanism,
-            architecture, stack, key_film, tr_structure,
+            result_id, topic_id, title, category, year, year_month, mechanism,
+            architecture, stack, key_film, key_material, tr_structure,
             memory_window, memory_window_voltage, memory_window_ratio,
             voltage, voltage_value,
             speed, speed_seconds,
@@ -225,10 +274,10 @@ def get_papers_for_graph():
             endurance, endurance_cycles,
             fetch_attempts, llm_attempts
         FROM papers
-        WHERE status = 'llm_processed'
-          AND COALESCE(excluded, 0) = 0
+        WHERE {' AND '.join(where_clauses)}
         ORDER BY created_at DESC
-        """
+        """,
+        params,
     )
     papers = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -396,26 +445,63 @@ def action_sense():
     payload = request.get_json(force=True) if request.data else {}
     topic_id = int(payload.get("topic_id", 1))
     start = max(int(payload.get("start", 0) or 0), 0)
-    log_message("INFO", f"Manual sensing queued for topic_id={topic_id}, start={start}.")
-    _run_async(services.sense_scholar, topic_id, 20, start)
-    return jsonify({"status": "started"})
+    log_message("INFO", f"SerpApi sensing start={start}, topic_id={topic_id}.")
+    services.sense_scholar(topic_id, 20, start)
+    return jsonify({"status": "done"})
 
 
 @app.route("/api/actions/fetch_abstracts", methods=["POST"])
 def action_fetch_abstracts():
     payload = request.get_json(force=True) if request.data else {}
-    limit = max(int(payload.get("limit", 10) or 10), 1)
-    log_message("INFO", f"Manual abstract fetch queued for {limit} items.")
-    _run_async(services.fetch_abstracts, limit)
+    limit = max(int(payload.get("limit", 20) or 20), 1)
+    raw_topic_id = payload.get("topic_id")
+    topic_id = int(raw_topic_id) if raw_topic_id else None
+    scope = f" for topic_id={topic_id}" if topic_id else ""
+    log_message("INFO", f"Manual abstract fetch queued for {limit} items{scope}.")
+    _run_async(services.fetch_abstracts, limit, topic_id)
     return jsonify({"status": "started"})
+
+
+@app.route("/api/actions/fetch_full_papers", methods=["POST"])
+def action_fetch_full_papers():
+    payload = request.get_json(force=True) if request.data else {}
+    limit = max(int(payload.get("limit", 20) or 20), 1)
+    raw_topic_id = payload.get("topic_id")
+    topic_id = int(raw_topic_id) if raw_topic_id else None
+    scope = f" for topic_id={topic_id}" if topic_id else ""
+    log_message("INFO", f"Manual full paper fetch queued for {limit} items{scope}.")
+    _run_async(services.fetch_full_papers, limit, topic_id)
+    return jsonify({"status": "started"})
+
+
+@app.route("/api/actions/backfill_status", methods=["GET"])
+def backfill_status():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM papers
+        WHERE status = 'llm_processed'
+          AND COALESCE(excluded, 0) = 0
+          AND COALESCE(key_material, '') = ''
+          AND (COALESCE(abstract, '') != '' OR COALESCE(full_text, '') != '')
+        """
+    )
+    total = cursor.fetchone()["total"]
+    conn.close()
+    return jsonify({"pending": total})
 
 
 @app.route("/api/actions/process_llm", methods=["POST"])
 def action_process_llm():
     payload = request.get_json(force=True) if request.data else {}
-    limit = max(int(payload.get("limit", 10) or 10), 1)
-    log_message("INFO", f"Manual LLM processing queued for {limit} items.")
-    _run_async(services.process_llm, limit)
+    limit = max(int(payload.get("limit", 20) or 20), 1)
+    raw_topic_id = payload.get("topic_id")
+    topic_id = int(raw_topic_id) if raw_topic_id else None
+    scope = f" for topic_id={topic_id}" if topic_id else ""
+    log_message("INFO", f"Manual LLM processing queued for {limit} items{scope}.")
+    _run_async(services.process_llm, limit, topic_id)
     return jsonify({"status": "started"})
 
 

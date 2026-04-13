@@ -72,33 +72,75 @@
                 </div>
 
                 <div class="action-grid">
-                    <div class="action-card sense action-block">
-                        <button id="btn-sense" class="action-button">
-                            <span class="action-title">Google Sensing</span>
-                            <span class="action-desc">Collect 20 latest items via SerpApi</span>
-                        </button>
-                        <label class="action-inline-field">
-                            <span>Result Offset</span>
-                            <input id="sense-offset" type="number" min="0" step="10" value="0">
-                        </label>
+                    <div class="action-group">
+                        <div class="action-row">
+                            <div class="action-card sense action-block half-card">
+                                <button id="btn-sense" class="action-button">
+                                    <span class="action-title">SerpApi Sensing</span>
+                                    <span class="action-desc">Collect items via SerpApi</span>
+                                </button>
+                            </div>
+                            <div class="action-card sense action-block half-card">
+                                <button id="btn-google-sense" class="action-button">
+                                    <span class="action-title">Google Sensing</span>
+                                    <span class="action-desc">Direct Google Scholar sensing</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="action-meta-row">
+                            <label class="action-inline-field">
+                                <span>Result Offset</span>
+                                <input id="sense-offset" type="number" min="0" step="10" value="0">
+                            </label>
+                            <label class="action-inline-field">
+                                <span># of Sensing</span>
+                                <input id="sense-limit" type="number" min="20" max="200" step="20" value="20">
+                            </label>
+                        </div>
                     </div>
-                    <div class="action-card abstract action-block">
-                        <button id="btn-abstract" class="action-button">
-                            <span class="action-title">Abstract Fetch</span>
-                            <span class="action-desc">Fetch the latest pending items</span>
-                        </button>
-                        <label class="action-inline-field action-inline-count">
-                            <input id="abstract-limit" type="number" min="1" max="100" step="1" value="10">
-                        </label>
+                    <div class="action-group">
+                        <div class="action-row">
+                            <div class="action-card abstract action-block half-card">
+                                <button id="btn-abstract" class="action-button">
+                                    <span class="action-title">Abstract Fetch</span>
+                                    <span class="action-desc">Fetch the latest pending items</span>
+                                </button>
+                            </div>
+                            <div class="action-card abstract action-block half-card">
+                                <button id="btn-full-paper" class="action-button">
+                                    <span class="action-title">Full Paper Fetch</span>
+                                    <span class="action-desc">Fetch full paper content</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="action-meta-row">
+                            <label class="action-inline-field">
+                                <span># of Item</span>
+                                <input id="abstract-limit" type="number" min="1" max="100" step="1" value="20">
+                            </label>
+                        </div>
                     </div>
-                    <div class="action-card llm action-block">
-                        <button id="btn-llm" class="action-button">
-                            <span class="action-title">LLM Analyzer</span>
-                            <span class="action-desc">Analyze the latest pending items</span>
-                        </button>
-                        <label class="action-inline-field action-inline-count">
-                            <input id="llm-limit" type="number" min="1" max="100" step="1" value="10">
-                        </label>
+                    <div class="action-group">
+                        <div class="action-row">
+                            <div class="action-card llm action-block half-card">
+                                <button id="btn-llm" class="action-button">
+                                    <span class="action-title">LLM Analyzer</span>
+                                    <span class="action-desc">Analyze the latest pending items</span>
+                                </button>
+                            </div>
+                            <div class="action-card llm action-block half-card">
+                                <button id="btn-backfill" class="action-button">
+                                    <span class="action-title">Backfill</span>
+                                    <span class="action-desc">Re-analyze items missing new fields (<span id="backfill-pending">?</span>)</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="action-meta-row">
+                            <label class="action-inline-field">
+                                <span># of Item</span>
+                                <input id="llm-limit" type="number" min="1" max="100" step="1" value="20">
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -122,28 +164,50 @@
                 </div>
 
                 <div class="graph-toolbar">
-                    <label class="inline-field compact">
-                        <span>X</span>
-                        <select id="x-axis"></select>
-                    </label>
-                    <label class="toggle compact">
-                        <input type="checkbox" id="x-log">
-                        <span>X Log</span>
-                    </label>
-                    <label class="inline-field compact">
-                        <span>Y</span>
-                        <select id="y-axis"></select>
-                    </label>
-                    <label class="toggle compact">
-                        <input type="checkbox" id="y-log">
-                        <span>Y Log</span>
-                    </label>
-                    <label class="inline-field compact slider-field">
-                        <span>Size</span>
-                        <input id="point-size" type="range" min="2" max="14" step="1" value="5">
-                    </label>
-                    <button id="btn-refresh-graph" class="btn">Refresh</button>
-                    <button id="btn-reset-zoom" class="btn">Reset Zoom</button>
+                    <div class="graph-toolbar-top">
+                        <label class="inline-field compact">
+                            <span>Chart</span>
+                            <select id="chart-mode">
+                                <option value="scatter">Scatter</option>
+                                <option value="yearly_stacked">Yearly Stacked Bar</option>
+                                <option value="monthly_stacked">Monthly Stacked Bar</option>
+                                <option value="cumulative_line">Cumulative Line</option>
+                            </select>
+                        </label>
+                        <label class="inline-field compact hidden" id="category-field-wrap">
+                            <span>Category</span>
+                            <select id="category-field">
+                                <option value="mechanism">Mechanism</option>
+                                <option value="architecture">Architecture</option>
+                                <option value="stack">Stack</option>
+                                <option value="key_material">Material</option>
+                            </select>
+                        </label>
+                        <button id="btn-refresh-graph" class="btn">Refresh</button>
+                        <button id="btn-reset-zoom" class="btn">Reset Zoom</button>
+                    </div>
+                    <div id="scatter-controls" class="scatter-controls">
+                        <label class="inline-field compact">
+                            <span>X</span>
+                            <select id="x-axis"></select>
+                        </label>
+                        <label class="toggle compact">
+                            <input type="checkbox" id="x-log">
+                            <span>X Log</span>
+                        </label>
+                        <label class="inline-field compact">
+                            <span>Y</span>
+                            <select id="y-axis"></select>
+                        </label>
+                        <label class="toggle compact">
+                            <input type="checkbox" id="y-log">
+                            <span>Y Log</span>
+                        </label>
+                        <label class="inline-field compact slider-field">
+                            <span>Size</span>
+                            <input id="point-size" type="range" min="2" max="14" step="1" value="5">
+                        </label>
+                    </div>
                 </div>
 
                 <div class="chart-shell">
@@ -180,18 +244,19 @@
                 <table id="db-table">
                     <thead>
                         <tr>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Year</th>
-                            <th>Mechanism</th>
-                            <th>Architecture</th>
-                            <th>Stack</th>
-                            <th>Memory Window</th>
-                            <th>Voltage</th>
-                            <th>Speed</th>
-                            <th>Retention</th>
-                            <th>Endurance</th>
-                            <th>Unique</th>
+                            <th class="sortable-header" data-sort-key="title">Title</th>
+                            <th class="sortable-header" data-sort-key="status">Status</th>
+                            <th class="sortable-header" data-sort-key="year">Year</th>
+                            <th class="sortable-header" data-sort-key="mechanism">Mechanism</th>
+                            <th class="sortable-header" data-sort-key="architecture">Architecture</th>
+                            <th class="sortable-header" data-sort-key="stack">Stack</th>
+                            <th class="sortable-header" data-sort-key="key_material">Material</th>
+                            <th class="sortable-header" data-sort-key="memory_window">Memory Window</th>
+                            <th class="sortable-header" data-sort-key="voltage">Voltage</th>
+                            <th class="sortable-header" data-sort-key="speed">Speed</th>
+                            <th class="sortable-header" data-sort-key="retention">Retention</th>
+                            <th class="sortable-header" data-sort-key="endurance">Endurance</th>
+                            <th class="sortable-header" data-sort-key="uniqueness">Unique</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
